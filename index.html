@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #070707;
+  background-image: radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-attachment: fixed;   /* dot grid stays still while scrolling */
+  color: #e4e4e7;
+  min-height: 100vh;
+}
+
+/* ── Topbar ── */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px; background: #0d0d0d;
+  border-bottom: 1px solid #1f1f1f; gap: 12px;
+}
+.topbar-left { display: flex; align-items: center; gap: 10px; }
+.app-logo {
+  width: 30px; height: 30px; background: transparent;
+  display: flex; align-items: center; justify-content: center;
+}
+.app-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.app-name { font-size: 13px; font-weight: 700; color: #fff; }
+.app-switcher { position: relative; }
+.app-switch-btn { background: none; border: none; color: #fff; font-size: 13px; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 6px; }
+.app-switch-btn:hover { background: #1a1a1a; }
+.app-caret { font-size: 9px; color: #777; }
+.app-menu { position: absolute; top: calc(100% + 6px); left: 0; background: #161616; border: 1px solid #2a2a2a; border-radius: 8px; padding: 5px; min-width: 190px; display: none; z-index: 60; box-shadow: 0 12px 32px rgba(0,0,0,0.6); }
+.app-menu.open { display: block; }
+.app-menu-item { padding: 8px 10px; border-radius: 5px; font-size: 12px; color: #e4e4e7; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.app-menu-item:hover { background: #222; }
+.app-menu-item.active { font-weight: 600; }
+.app-menu-item.active::after { content: '✓'; color: #5BA7E0; font-size: 11px; }
+.app-menu-item.disabled { color: #555; cursor: default; }
+.app-menu-item.disabled:hover { background: transparent; }
+.app-menu-item.disabled::after { content: 'soon'; font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: #555; border: 1px solid #333; border-radius: 3px; padding: 1px 5px; }
+.app-badge {
+  font-size: 9px; font-weight: 600; background: #1a1a1a; border: 1px solid #333;
+  color: #666; border-radius: 3px; padding: 2px 6px; letter-spacing: 0.05em;
+}
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
+.ctrl {
+  background: #0d0d0d; border: 1px solid #222; color: #a1a1aa;
+  border-radius: 6px; padding: 6px 9px; font-size: 11px;
+  font-family: inherit; outline: none; cursor: pointer;
+}
+.ctrl:focus { border-color: #444; }
+.ctrl-group { display: flex; align-items: center; gap: 5px; }
+.ctrl-label { font-size: 10px; color: #555; }
+.ctrl-cur { width: 52px; cursor: text; text-align: center; }
+
+.btn { border: none; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; }
+.btn-ghost { background: transparent; border: 1px solid #222; color: #71717a; padding: 6px 12px; font-size: 11px; }
+.btn-ghost:hover { border-color: #444; color: #e4e4e7; }
+
+/* Split export button */
+.split-btn { position: relative; display: flex; }
+.split-main {
+  background: #fff; color: #000; padding: 7px 14px; font-size: 11px;
+  border: none; border-radius: 6px 0 0 6px; cursor: pointer; font-weight: 700; font-family: inherit;
+}
+.split-main:hover { background: #e4e4e7; }
+.split-caret {
+  background: #fff; color: #000; padding: 7px 8px; font-size: 10px;
+  border: none; border-left: 1px solid #ccc; border-radius: 0 6px 6px 0;
+  cursor: pointer; font-family: inherit;
+}
+.split-caret:hover { background: #e4e4e7; }
+.export-menu {
+  position: absolute; top: calc(100% + 5px); right: 0;
+  background: #161616; border: 1px solid #2a2a2a; border-radius: 8px;
+  padding: 5px; min-width: 240px; display: none; z-index: 60;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+}
+.export-menu.open { display: block; }
+.export-item {
+  padding: 9px 11px; border-radius: 5px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.export-item:hover { background: #222; }
+.export-item-title { font-size: 12px; font-weight: 600; color: #e4e4e7; }
+.export-item-desc { font-size: 10px; color: #666; }
+
+/* ── Stage ── */
+.stage {
+  margin-top: 18px;
+  padding: 32px 24px 80px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.stage-hint {
+  font-size: 11px; color: #444; display: flex; align-items: center; gap: 6px;
+}
+.stage-hint b { color: #777; font-weight: 600; }
+
+/* ── Theme picker (near the page, top-right) ── */
+.theme-bar { width: 720px; max-width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 2px; }
+.theme-bar-label { font-size: 10px; color: #555; letter-spacing: 0.08em; text-transform: uppercase; margin-right: 4px; }
+.swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #2e2e2e; cursor: pointer; padding: 0; position: relative; transition: transform 0.12s, border-color 0.12s; }
+.swatch:hover { transform: scale(1.12); }
+.swatch.active { border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,0.25); }
+.swatch-custom { overflow: hidden; background: conic-gradient(#f43f5e, #f59e0b, #84cc16, #06b6d4, #6366f1, #d946ef, #f43f5e); display: inline-flex; align-items: center; justify-content: center; }
+.swatch-custom input[type=color] { opacity: 0; width: 200%; height: 200%; cursor: pointer; border: none; padding: 0; }
+
+/* ════════════════════════════════════
+   INVOICE — always white
+════════════════════════════════════ */
+.invoice {
+  --ink: #1A1A1A;        /* theme color (hero, accents) */
+  background: #fff;
+  width: 720px;          /* A4 default */
+  color: #1A1A1A;
+  font-family: 'Inter', 'Helvetica Neue', sans-serif;
+  overflow: hidden;
+  box-shadow: 0 8px 50px rgba(0,0,0,0.6);
+  display: flex;
+  transition: width 0.2s ease;
+}
+.invoice.size-Letter { width: 740px; }
+.invoice.size-Legal  { width: 740px; }
+.invoice.size-A5     { width: 520px; }
+
+.inv-spine { width: 10px; background: #1A1A1A; flex-shrink: 0; }
+.inv-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* ── Editable affordance ── */
+[contenteditable="true"] {
+  outline: none; border-radius: 3px;
+  transition: background 0.12s, box-shadow 0.12s;
+  cursor: text;
+}
+[contenteditable="true"]:hover { background: rgba(0,0,0,0.045); box-shadow: 0 0 0 3px rgba(0,0,0,0.045); }
+[contenteditable="true"]:focus { background: rgba(37,99,235,0.09); box-shadow: 0 0 0 3px rgba(37,99,235,0.18); }
+/* On the dark hero, invert */
+.on-dark[contenteditable="true"]:hover { background: rgba(255,255,255,0.1); box-shadow: 0 0 0 3px rgba(255,255,255,0.1); }
+.on-dark[contenteditable="true"]:focus { background: rgba(159,232,112,0.16); box-shadow: 0 0 0 3px rgba(159,232,112,0.3); }
+
+/* Hero */
+.inv-hero { background: var(--ink); padding: 26px 28px 22px 28px; }
+
+/* Light theme color → dark hero text for contrast */
+.invoice.light-ink .inv-eyebrow,
+.invoice.light-ink .inv-name,
+.invoice.light-ink .inv-num-val,
+.invoice.light-ink .inv-billed-name,
+.invoice.light-ink .inv-terms-val { color: rgba(0,0,0,0.82) !important; }
+.invoice.light-ink .inv-name-sub,
+.invoice.light-ink .inv-biller-lines,
+.invoice.light-ink .inv-num-label,
+.invoice.light-ink .inv-dateline,
+.invoice.light-ink .inv-dateline .ed-date,
+.invoice.light-ink .inv-billed-lbl,
+.invoice.light-ink .inv-terms-lbl { color: rgba(0,0,0,0.55) !important; }
+.invoice.light-ink .inv-kpi-strip { background: rgba(0,0,0,0.10); }
+.invoice.light-ink .inv-billed,
+.invoice.light-ink .inv-terms-col { background: rgba(0,0,0,0.04); }
+.invoice.light-ink .inv-amountdue { background: #1A1A1A; }
+.invoice.light-ink .inv-amountdue-val { color: #fff !important; }
+.invoice.light-ink .inv-amountdue-lbl { color: rgba(255,255,255,0.55); }
+.invoice.light-ink .logo-box { border-color: rgba(0,0,0,0.25); }
+.invoice.light-ink .logo-ph { color: rgba(0,0,0,0.3); }
+.inv-hero-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; }
+.inv-biller { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.logo-box {
+  background: rgba(255,255,255,0.06); border: 1px dashed rgba(255,255,255,0.18);
+  border-radius: 4px; overflow: hidden; flex-shrink: 0; position: relative;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: border-color 0.15s;
+}
+.logo-box:hover { border-color: rgba(255,255,255,0.4); }
+.logo-box img { width: 100%; height: 100%; object-fit: contain; }
+.logo-box.has-img { border-color: transparent !important; background: transparent !important; }
+.logo-remove {
+  position: absolute; top: 2px; right: 2px; width: 15px; height: 15px;
+  border-radius: 50%; border: none; background: rgba(0,0,0,0.6); color: #fff;
+  font-size: 9px; line-height: 1; cursor: pointer; display: none;
+  align-items: center; justify-content: center; padding: 0; z-index: 3;
+}
+.logo-box.has-img:hover .logo-remove { display: flex; }
+.logo-remove:hover { background: #ef4444; }
+.logo-ph { font-size: 7px; color: rgba(255,255,255,0.3); text-align: center; line-height: 1.3; letter-spacing: 0.05em; padding: 2px; }
+.inv-logo { flex: none; align-self: center; width: 48px; height: 48px; overflow: hidden; }
+.inv-client-logo { width: 62px; height: 36px; }
+.inv-biller-text { min-width: 0; }
+.inv-biller-lines { font-size: 9px; color: rgba(255,255,255,0.42); line-height: 1.65; margin-top: 5px; display: inline-block; }
+
+.inv-eyebrow {
+  font-size: 7.5px; font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase;
+  color: rgba(255,255,255,0.4); margin-bottom: 6px; display: inline-block;
+}
+.inv-name { font-size: 28px; font-weight: 900; color: #fff; letter-spacing: -1.5px; line-height: 0.95; }
+.inv-name-sub { font-size: 16px; font-weight: 400; color: rgba(255,255,255,0.45); letter-spacing: -0.3px; display: inline-block; margin-top: 2px; }
+
+.inv-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+.inv-num-label { font-size: 7.5px; font-weight: 600; letter-spacing: 0.25em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+.inv-num-val { font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px; display: inline-block; }
+.inv-dateline { font-size: 9.5px; color: rgba(255,255,255,0.45); margin-top: 4px; }
+.inv-dateline .ed-date { color: rgba(255,255,255,0.7); display: inline-block; cursor: pointer; border-radius: 3px; padding: 0 2px; transition: background 0.12s; }
+.inv-dateline .ed-date:hover { background: rgba(255,255,255,0.12); }
+.date-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
+
+/* Billed To + Amount Due strip */
+.inv-kpi-strip { display: flex; align-items: stretch; gap: 1px; background: rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; margin-top: 10px; }
+.inv-billed { flex: 1; background: rgba(255,255,255,0.04); padding: 12px 16px; display: flex; flex-direction: column; gap: 9px; justify-content: center; min-width: 0; }
+.inv-billed-row { display: flex; align-items: center; gap: 11px; }
+.inv-billed-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.inv-billed-lbl { font-size: 6.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.4); display: block; }
+.inv-billed-row .inv-client-logo { width: 54px; height: 34px; }
+.inv-billed-name { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -0.4px; line-height: 1.1; }
+
+.inv-amountdue { background: #fff; padding: 14px 24px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; min-width: 180px; text-align: right; }
+.inv-amountdue-lbl { font-size: 7px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #999; line-height: 1; }
+.inv-amountdue-val { font-size: 30px; font-weight: 900; color: var(--ink); letter-spacing: -1px; line-height: 1.05; margin-top: 6px; overflow-wrap: anywhere; word-break: break-word; text-align: right; max-width: 100%; }
+
+.inv-terms-col { background: rgba(255,255,255,0.04); padding: 12px 20px; display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 92px; }
+.inv-terms-lbl { font-size: 6.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.4); display: inline-block; }
+.inv-terms-val { font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -0.3px; line-height: 1; }
+
+/* Terms / Tax banner */
+.inv-banner { display: flex; align-items: center; gap: 36px; padding: 10px 28px; background: #fafafa; border-bottom: 1px solid #EAEAEA; }
+.inv-banner-item { display: flex; flex-direction: column; gap: 3px; }
+.inv-banner-lbl { font-size: 7px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #aaa; display: inline-block; }
+.inv-banner-val { font-size: 13px; font-weight: 800; color: #1A1A1A; letter-spacing: -0.3px; line-height: 1; display: inline-block; }
+.banner-add-tax {
+  background: none; border: 1px dashed #ccc; color: #999; font-size: 9px;
+  padding: 3px 9px; border-radius: 4px; cursor: pointer; font-family: 'Inter', sans-serif;
+}
+.banner-add-tax:hover { border-color: #999; color: #555; }
+
+/* Stats grid (legacy) */
+.inv-stats { display: grid; grid-template-columns: repeat(2, 1fr); border-bottom: 2px solid #1A1A1A; }
+.inv-stat { padding: 10px 16px; border-right: 1px solid #E8E8E8; }
+.inv-stat:last-child { border-right: none; }
+.inv-stat-num { font-size: 16px; font-weight: 900; color: #1A1A1A; line-height: 1; letter-spacing: -0.3px; display: inline-block; }
+.inv-stat-lbl { font-size: 7px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #AAA; margin-top: 3px; display: inline-block; }
+.inv-stat-logo { display: flex; align-items: center; justify-content: flex-end; }
+.inv-stat-logo .logo-box { background: #fafafa; border: 1px dashed #ccc; }
+.inv-stat-logo .logo-box:hover { border-color: #888; }
+.inv-stat-logo .logo-ph { color: #bbb; }
+
+/* Body */
+.inv-body { padding: 16px 32px 28px 28px; }
+.inv-section { display: flex; align-items: center; gap: 9px; margin: 0 0 10px; }
+.inv-section-bar { width: 3px; height: 14px; background: var(--ink); border-radius: 2px; flex-shrink: 0; }
+.inv-section-name { font-size: 8px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); display: inline-block; }
+.inv-section-line { flex: 1; height: 1px; background: #EBEBEB; }
+
+/* Table */
+.inv-table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed; }
+/* Fixed numeric columns; description takes the rest and wraps */
+.inv-table th:nth-child(2), .inv-table td:nth-child(2) { width: 56px; }
+.inv-table th:nth-child(3), .inv-table td:nth-child(3) { width: 86px; }
+.inv-table th:nth-child(4), .inv-table td:nth-child(4) { width: 96px; }
+.inv-table thead tr { background: #F4F4F4; }
+.inv-table thead th { text-align: left; padding: 7px 10px; font-size: 7px; font-weight: 700; color: #888; letter-spacing: 0.1em; text-transform: uppercase; }
+.inv-table thead th:not(:first-child) { text-align: right; }
+.inv-table thead th span[contenteditable] { display: inline-block; }
+.inv-table tbody td { padding: 8px 10px; color: #2A2A2A; border-bottom: 1px solid #F2F2F2; vertical-align: top; position: relative; overflow-wrap: anywhere; word-break: break-word; }
+.inv-table tbody td:not(:first-child) { text-align: right; vertical-align: middle; }
+.inv-table tbody tr:nth-child(even) td { background: #FAFAFA; }
+.amount-cell { font-weight: 700; color: #1A1A1A; }
+.ed-num { display: inline-block; min-width: 30px; text-align: right; }
+
+
+/* note */
+.inv-note {
+  display: block; margin-top: 4px; padding: 4px 8px 4px 8px;
+  background: #F2F2F2; border-left: 2px solid #CFCFCF; border-radius: 0 3px 3px 0;
+  font-size: 9.5px; color: #555; line-height: 1.4;
+}
+.inv-note::before {
+  content: '';
+  display: inline-block;
+  width: 10px; height: 10px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  opacity: 0.55;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+.inv-note[contenteditable]:empty::after { content: 'Add a note...'; color: #bbb; }
+
+/* row controls */
+.row-del {
+  position: absolute; top: 6px; right: 4px;
+  width: 16px; height: 16px; border-radius: 50%;
+  border: none; background: #f0f0f0; color: #999; cursor: pointer;
+  font-size: 9px; line-height: 1; display: none; align-items: center; justify-content: center;
+}
+.inv-table tbody tr:hover .row-del { display: flex; }
+.row-del:hover { background: #ef4444; color: #fff; }
+
+.note-add {
+  display: none; background: none; border: none; color: #bbb;
+  font-size: 9px; cursor: pointer; font-family: 'Inter', sans-serif; padding: 3px 0 0;
+}
+.inv-table tbody tr:hover .note-add { display: inline-block; }
+.note-add:hover { color: #666; }
+
+.add-row td {
+  padding: 0 !important; border-bottom: none !important; background: transparent !important;
+}
+.add-row-btn {
+  width: 100%; background: #fafafa; border: 1px dashed #d4d4d4; color: #999;
+  padding: 6px; font-size: 9.5px; font-family: inherit; cursor: pointer;
+  border-radius: 4px; margin-top: 6px; transition: all 0.15s;
+}
+.add-row-btn:hover { border-color: #999; color: #555; background: #f4f4f4; }
+
+/* Notes + Terms */
+.inv-notes-area { margin: 16px 0 4px; display: flex; flex-direction: column; gap: 12px; }
+.inv-note-block { }
+.inv-note-lbl { font-size: 7px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #aaa; margin-bottom: 5px; }
+.inv-note-body { font-size: 10px; color: #444; line-height: 1.5; outline: none; min-height: 15px; padding: 7px 10px; background: #fafafa; border-left: 2px solid #e0e0e0; border-radius: 0 4px 4px 0; }
+.inv-note-body:empty::before { content: attr(data-ph); color: #c7c7c7; }
+
+/* Totals breakdown */
+.inv-footer { display: flex; justify-content: space-between; align-items: flex-end; padding-top: 16px; border-top: 1px solid #E8E8E8; margin-top: 8px; gap: 20px; }
+.inv-totals { width: 290px; flex-shrink: 0; }
+.tl { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 10.5px; color: #777; }
+.tl-label { white-space: nowrap; flex-shrink: 0; }
+.tl-right { display: flex; align-items: center; gap: 8px; min-width: 0; justify-content: flex-end; flex: 1; }
+.tl-ctrl { display: flex; align-items: center; gap: 4px; }
+.tl-mode { width: 18px; height: 18px; border: 1px solid #d4d4d4; background: #fff; border-radius: 4px; font-size: 9px; font-weight: 700; color: #666; cursor: pointer; font-family: 'Inter', sans-serif; padding: 0; }
+.tl-mode:hover { border-color: #999; color: #1A1A1A; }
+.tl-box { display: inline-flex; align-items: center; gap: 2px; border: 1px solid #e0e0e0; border-radius: 5px; padding: 3px 7px; background: #fff; min-width: 64px; justify-content: flex-end; }
+.tl-affix { font-size: 9px; color: #aaa; }
+.tl-box.pct .tl-affix { order: 2; margin-left: 1px; }   /* % sits after the number */
+.tl-num { font-size: 10px; color: #1A1A1A; outline: none; min-width: 26px; text-align: right; }
+.tl-amt { font-weight: 600; color: #333; min-width: 64px; text-align: right; overflow-wrap: anywhere; word-break: break-word; }
+.tl-divider { height: 1px; background: #E8E8E8; margin: 6px 0; }
+.tl-total .tl-label { font-weight: 800; color: #1A1A1A; font-size: 12px; }
+.tl-total .tl-amt { font-weight: 800; color: #1A1A1A; font-size: 14px; }
+.tl-balance { padding-top: 2px; }
+.tl-balance .tl-label { font-weight: 900; color: var(--ink); font-size: 13px; }
+.tl-balance .tl-amt { font-weight: 900; color: var(--ink); font-size: 17px; letter-spacing: -0.3px; }
+.inv-footer-left { display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 0; max-width: 330px; }
+/* A5: keep 2 columns — QR above the banner, slightly smaller totals */
+.invoice.size-A5 .inv-pay-group { flex-direction: column; align-items: flex-start; gap: 8px; }
+.invoice.size-A5 .inv-footer-left { max-width: 220px; }
+.invoice.size-A5 .inv-totals { width: 212px; }
+.invoice.size-A5 .tl { gap: 8px; font-size: 10px; }
+.invoice.size-A5 .tl-box { min-width: 48px; padding: 3px 5px; }
+.invoice.size-A5 .tl-amt { min-width: 50px; }
+.invoice.size-A5 .tl-total .tl-amt { font-size: 13px; }
+.invoice.size-A5 .tl-balance .tl-amt { font-size: 15px; }
+.inv-terms-foot { width: 100%; }
+.inv-pay-group { display: flex; align-items: center; gap: 12px; }
+.inv-qr { width: 66px; height: 66px; flex-shrink: 0; background: #fafafa; border: 1px dashed #ccc; position: relative; }
+.inv-qr .logo-ph { color: #bbb; }
+.qr-final { width: 100%; height: 100%; object-fit: cover; }
+.qr-readjust { position: absolute; left: 4px; right: 4px; bottom: 3px; display: none; background: rgba(0,0,0,0.72); color: #fff; border: none; border-radius: 3px; font-size: 8px; font-weight: 600; padding: 3px; cursor: pointer; font-family: 'Inter', sans-serif; }
+.inv-qr.has-img:hover .qr-readjust { display: block; }
+
+/* Crop modal */
+.crop-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 200; display: none; align-items: center; justify-content: center; }
+.crop-modal { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 18px; width: 300px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+.crop-title { font-size: 11px; color: #a1a1aa; margin-bottom: 12px; text-align: center; }
+.crop-stage { width: 260px; height: 260px; margin: 0 auto; position: relative; overflow: hidden; border-radius: 8px; background: #000; cursor: grab; }
+.crop-stage:active { cursor: grabbing; }
+#cropImg { position: absolute; user-select: none; -webkit-user-drag: none; max-width: none; }
+.crop-frame { position: absolute; inset: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35); border-radius: 8px; pointer-events: none; }
+#cropZoom { width: 100%; margin: 14px 0; cursor: pointer; }
+.crop-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.inv-pay-wrap { position: relative; flex-shrink: 0; }
+.inv-pay {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--pay-bg, #9fe870); border-radius: 6px; padding: 8px 12px;
+}
+.inv-pay-label { font-size: 11px; font-weight: 900; color: var(--pay-fg, #163300); letter-spacing: -0.5px; font-family: 'Arial Black', sans-serif; display: inline-block; }
+.inv-pay-link { font-size: 8.5px; color: var(--pay-dim, #2d5a00); display: inline-block; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.inv-pay-link:empty::before { content: attr(data-ph); opacity: 0.6; }
+.inv-pay-btn { background: var(--pay-fg, #163300); color: var(--pay-bg, #9fe870); font-size: 8px; font-weight: 700; padding: 3px 7px; border-radius: 3px; text-decoration: none; display: inline-block; cursor: pointer; }
+
+/* Payment method selector */
+.pay-change {
+  position: absolute; top: -9px; left: -9px; z-index: 2;
+  background: #1A1A1A; color: #fff; border: 1px solid #333;
+  border-radius: 12px; font-size: 9px; font-weight: 600; font-family: 'Inter', sans-serif;
+  width: 18px; height: 18px; line-height: 1; padding: 0; cursor: pointer;
+}
+.pay-change:hover { background: #333; }
+.pay-hide-btn {
+  position: absolute; top: -9px; right: -9px;
+  background: #1A1A1A; color: #fff; border: 1px solid #333;
+  border-radius: 12px; font-size: 9px; font-weight: 600; font-family: 'Inter', sans-serif;
+  width: 18px; height: 18px; line-height: 1; cursor: pointer; padding: 0;
+}
+.pay-hide-btn:hover { background: #ef4444; border-color: #ef4444; }
+.pay-show-btn {
+  background: none; border: 1px dashed #ccc; color: #999; font-size: 10px;
+  padding: 10px 16px; border-radius: 6px; cursor: pointer; font-family: 'Inter', sans-serif; align-self: flex-start;
+}
+.pay-show-btn:hover { border-color: #999; color: #555; }
+.pay-menu {
+  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 40;
+  background: #161616; border: 1px solid #2a2a2a; border-radius: 10px;
+  padding: 8px; width: 230px; display: none; font-family: 'Inter', sans-serif;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+}
+.pay-menu.open { display: block; }
+.pay-menu-title { font-size: 8px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #555; padding: 4px 6px 8px; }
+.pay-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 8px; }
+.pay-preset {
+  display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  border-radius: 6px; cursor: pointer; border: 1px solid transparent;
+}
+.pay-preset:hover { background: #222; }
+.pay-swatch { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
+.pay-preset-name { font-size: 10px; font-weight: 600; color: #e4e4e7; }
+.pay-linkfield { padding: 4px 6px 8px; }
+.pay-linkfield input {
+  width: 100%; background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 5px;
+  padding: 6px 8px; font-size: 10px; color: #e4e4e7; font-family: inherit; outline: none;
+}
+.pay-linkfield input:focus { border-color: #444; }
+.pay-custom { border-top: 1px solid #2a2a2a; padding-top: 8px; }
+.pay-custom-row { display: flex; align-items: center; gap: 8px; padding: 3px 6px; }
+.pay-custom-row label { font-size: 10px; color: #888; flex: 1; }
+.pay-custom-row input[type=color] { width: 28px; height: 22px; border: 1px solid #333; border-radius: 4px; background: #0d0d0d; cursor: pointer; padding: 1px; }
+
+
+/* ── Preview mode (clean) ── */
+body.preview-mode .topbar { display: none; }
+body.preview-mode .stage { padding-top: 24px; }
+body.preview-mode .stage-hint { display: none; }
+body.preview-mode [contenteditable="true"]:hover,
+body.preview-mode [contenteditable="true"]:focus { background: transparent; box-shadow: none; }
+body.preview-mode .row-del,
+body.preview-mode .note-add,
+body.preview-mode .tl-ctrl,
+body.preview-mode .add-row { display: none !important; }
+body.preview-mode .tl.zero-row { display: none !important; }
+body.preview-mode .inv-note-block:has(.inv-note-body:empty) { display: none !important; }
+body.preview-mode .inv-note-body:empty::before { content: ''; }
+body.preview-mode .logo-box { border-color: transparent; cursor: default; }
+body.preview-mode .logo-box:not(.has-img) { display: none !important; }
+body.preview-mode .inv-note[contenteditable]:empty { display: none; }
+body.preview-mode .pay-change, body.preview-mode .pay-menu, body.preview-mode .pay-hide-btn, body.preview-mode .pay-show-btn { display: none !important; }
+body.preview-mode .qr-readjust, body.preview-mode .crop-overlay, body.preview-mode .logo-remove { display: none !important; }
+body.preview-mode .theme-bar { display: none !important; }
+body.preview-mode .inv-pay-link:empty { display: none !important; }
+body.preview-mode .inv-pay-link.pay-hide { display: none !important; }
+body.preview-mode .inv-pay:has(.inv-pay-link:empty) .inv-pay-btn { display: none !important; }
+body.preview-mode .ed-date { cursor: default; }
+body.preview-mode .ed-date:hover { background: transparent; }
+body.preview-mode .row-desc:empty::before,
+body.preview-mode .ed-num:empty::before { content: ''; }
+
+.preview-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: none; align-items: center; justify-content: space-between;
+  padding: 10px 20px; background: #0d0d0d; border-bottom: 1px solid #1f1f1f;
+}
+body.preview-mode .preview-bar { display: flex; }
+.preview-bar-title { font-size: 12px; color: #a1a1aa; font-weight: 600; }
+.preview-bar-actions { display: flex; gap: 8px; }
+
+/* ── Mobile / narrow screens ── */
+@media (max-width: 680px) {
+  .topbar { flex-wrap: wrap; gap: 8px; padding: 8px 12px; position: static; }
+  .topbar-left, .topbar-right { gap: 7px; }
+  .topbar-right { flex-wrap: wrap; justify-content: flex-end; flex: 1; }
+  .app-switch-btn { font-size: 12px; padding: 3px 5px; }
+  .app-badge { display: none; }
+  .ctrl, .btn-ghost { font-size: 10px; padding: 5px 7px; }
+  .ctrl-label { display: none; }            /* "Currency" label — save space */
+  .split-main { font-size: 10px; padding: 6px 10px; }
+  .split-caret { padding: 6px 6px; }
+  .export-menu { min-width: 200px; }
+
+  .stage { margin-top: 10px; padding: 14px 10px 56px; gap: 10px; }
+  .stage-hint { display: none; }            /* hint is desktop-hover oriented */
+  .theme-bar { width: 100%; flex-wrap: wrap; justify-content: center; gap: 7px; }
+
+  /* Crop modal fits the screen (stage stays 260 so crop math is unchanged) */
+  .crop-modal { width: 300px; max-width: 94vw; }
+
+  .preview-bar { flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
+  .preview-bar-title { font-size: 10px; }
+}
+
+/* ── Print ── */
+@media print {
+  body { background: #fff !important; }
+  .topbar, .stage-hint, .preview-bar, .row-del, .note-add, .add-row, .pay-change, .pay-menu, .qr-readjust, .crop-overlay, .theme-bar, .logo-remove, .pay-hide-btn, .pay-show-btn { display: none !important; }
+  .tl-ctrl { display: none !important; }                 /* show computed amounts only */
+  .tl.zero-row { display: none !important; }             /* hide 0 tax/discount/shipping/paid */
+  .inv-note-block:has(.inv-note-body:empty) { display: none !important; }
+  .inv-note-body:empty::before { content: '' !important; }
+  .inv-pay-link:empty, .inv-pay-link.pay-hide { display: none !important; }
+  .inv-pay:has(.inv-pay-link:empty) .inv-pay-btn { display: none !important; }
+  .stage { margin: 0 !important; padding: 0 !important; background: #fff !important; background-image: none !important; }
+  .invoice { box-shadow: none !important; width: 100% !important; zoom: 1 !important; }
+  [contenteditable="true"]:hover, [contenteditable="true"]:focus { background: transparent !important; box-shadow: none !important; }
+  .logo-box { border-color: transparent !important; }
+  .logo-box:not(.has-img) { display: none !important; }
+  .inv-note[contenteditable]:empty { display: none !important; }
+  .row-desc:empty::before, .ed-num:empty::before { content: '' !important; }
+  /* Keep rows, totals and payment block from splitting across pages */
+  .inv-table tr, .inv-footer, .inv-notes-area, .inv-pay-group { break-inside: avoid; page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- Preview-mode floating bar -->
+<div class="preview-bar">
+  <span class="preview-bar-title">Preview — this is exactly how your PDF will look</span>
+  <div class="preview-bar-actions">
+    <button class="btn btn-ghost" onclick="exitPreview()">← Back to editing</button>
+    <button class="split-main" style="border-radius:6px;" onclick="doPrint()">⬇ Download PDF</button>
+  </div>
+</div>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="app-logo"><img src="https://i.imgur.com/FGRdLPO.png" alt="logo"></div>
+    <div class="app-switcher">
+      <button class="app-switch-btn" onclick="toggleAppMenu(event)">Invoice Generator <span class="app-caret">▾</span></button>
+      <div class="app-menu" id="appMenu">
+        <div class="app-menu-item active">Invoice Generator</div>
+        <div class="app-menu-item disabled">Coming Soon</div>
+      </div>
+    </div>
+    <span class="app-badge">BETA</span>
+  </div>
+  <div class="topbar-right">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Currency</span>
+      <select class="ctrl" id="currencySel" onchange="onCurrencyChange()">
+        <option value="$">$ &nbsp;USD</option>
+        <option value="€">€ &nbsp;EUR</option>
+        <option value="£">£ &nbsp;GBP</option>
+        <option value="₱">₱ &nbsp;PHP</option>
+        <option value="¥">¥ &nbsp;JPY</option>
+        <option value="₹">₹ &nbsp;INR</option>
+        <option value="A$">A$ &nbsp;AUD</option>
+        <option value="C$">C$ &nbsp;CAD</option>
+        <option value="₩">₩ &nbsp;KRW</option>
+        <option value="R$">R$ &nbsp;BRL</option>
+        <option value="฿">฿ &nbsp;THB</option>
+        <option value="₫">₫ &nbsp;VND</option>
+        <option value="custom">Custom…</option>
+      </select>
+      <input class="ctrl ctrl-cur" id="currencyCustom" placeholder="sym" style="display:none" oninput="onCurrencyCustom()">
+    </div>
+    <select class="ctrl" id="pageSize" onchange="setPageSize()">
+      <option value="A4">A4</option>
+      <option value="Letter">Letter</option>
+      <option value="Legal">Legal</option>
+      <option value="A5">A5</option>
+    </select>
+    <button class="btn btn-ghost" onclick="resetAll()">↺ Reset</button>
+    <div class="split-btn">
+      <button class="split-main" onclick="enterPreview()">⬇ Export PDF</button>
+      <button class="split-caret" onclick="toggleExportMenu(event)">▾</button>
+      <div class="export-menu" id="exportMenu">
+        <div class="export-item" onclick="enterPreview()">
+          <span class="export-item-title">Preview, then download</span>
+          <span class="export-item-desc">See the final PDF before saving (default)</span>
+        </div>
+        <div class="export-item" onclick="exportNow()">
+          <span class="export-item-title">Export now</span>
+          <span class="export-item-desc">Skip preview, go straight to save</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stage -->
+<div class="stage">
+  <div class="stage-hint">✎ <b>Click any text on the invoice to edit it.</b> Hover a row for the delete button. Logos are clickable.</div>
+
+  <div class="theme-bar" id="themeBar">
+    <span class="theme-bar-label">Theme</span>
+    <button class="swatch" data-ink="#1A1A1A" title="Onyx — default / professional" style="background:#1A1A1A"></button>
+    <button class="swatch" data-ink="#3C5A40" title="Matcha — cafe / wellness / food" style="background:#3C5A40"></button>
+    <button class="swatch" data-ink="#16414F" title="Ocean — tech / consulting / SaaS" style="background:#16414F"></button>
+    <button class="swatch" data-ink="#7A3B2E" title="Clay — creative / handmade / studio" style="background:#7A3B2E"></button>
+    <button class="swatch" data-ink="#43304D" title="Plum — beauty / salon / luxury" style="background:#43304D"></button>
+    <label class="swatch swatch-custom" title="Custom color">
+      <input type="color" id="themeCustom" value="#1A1A1A">
+    </label>
+  </div>
+
+  <div class="invoice size-A4" id="invoice">
+    <div class="inv-main">
+
+      <!-- Hero -->
+      <div class="inv-hero">
+        <div class="inv-hero-top">
+          <div class="inv-biller">
+            <div class="logo-box inv-logo" onclick="pickLogo('billerLogo')" id="billerLogo">
+              <span class="logo-ph">YOUR<br>LOGO</span>
+            </div>
+            <div class="inv-biller-text">
+              <span class="inv-eyebrow on-dark" contenteditable="true">Invoice</span>
+              <div class="inv-name on-dark" contenteditable="true">Your Business</div>
+              <div class="inv-biller-lines on-dark" contenteditable="true">123 Street, City<br>you@email.com · +1 555 0000<br>Tax ID / VAT</div>
+            </div>
+          </div>
+          <div class="inv-right">
+            <div>
+              <div class="inv-num-label">Invoice No.</div>
+              <span class="inv-num-val on-dark" contenteditable="true">INV-0001</span>
+              <div class="inv-dateline">Issued <span class="ed-date" id="issuedText" onclick="openDate('issued')">Jun 3, 2026</span><input type="date" id="issuedInput" class="date-hidden" onchange="setDate('issued')"></div>
+              <div class="inv-dateline">Due <span class="ed-date" id="dueText" onclick="openDate('due')">Jun 8, 2026</span><input type="date" id="dueInput" class="date-hidden" onchange="setDate('due')"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Billed To + Amount Due strip -->
+        <div class="inv-kpi-strip">
+          <div class="inv-billed">
+            <div class="inv-billed-row">
+              <div class="logo-box inv-client-logo" onclick="pickLogo('clientLogo')" id="clientLogo">
+                <span class="logo-ph">CLIENT<br>LOGO</span>
+              </div>
+              <div class="inv-billed-text">
+                <span class="inv-billed-lbl">Billed To</span>
+                <div class="inv-billed-name on-dark" contenteditable="true">Client Name</div>
+              </div>
+            </div>
+          </div>
+          <div class="inv-amountdue">
+            <span class="inv-amountdue-lbl">Amount Due</span>
+            <div class="inv-amountdue-val" id="kpiTotal">$0.00</div>
+          </div>
+          <div class="inv-terms-col">
+            <span class="inv-terms-lbl" contenteditable="true">Terms</span>
+            <div class="inv-terms-val on-dark" contenteditable="true">Net 5</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats grid -->
+
+      <!-- Body -->
+      <div class="inv-body">
+        <div class="inv-section">
+          <div class="inv-section-bar"></div>
+          <span class="inv-section-name" contenteditable="true">Line Items</span>
+          <div class="inv-section-line"></div>
+        </div>
+
+        <table class="inv-table" id="invTable">
+          <thead>
+            <tr>
+              <th><span contenteditable="true">Product / Service</span></th>
+              <th><span contenteditable="true">Qty</span> ✎</th>
+              <th><span contenteditable="true">Rate</span> ✎</th>
+              <th><span contenteditable="true">Amount</span></th>
+            </tr>
+          </thead>
+          <tbody id="invBody"><!-- rows injected --></tbody>
+          <tbody class="add-row">
+            <tr><td colspan="4"><button class="add-row-btn" onclick="addRow()">+ Add line item</button></td></tr>
+          </tbody>
+        </table>
+
+        <!-- Notes + Terms (placeholders never print; empty blocks hidden in print) -->
+        <div class="inv-notes-area">
+          <div class="inv-note-block">
+            <div class="inv-note-lbl">Notes</div>
+            <div class="inv-note-body" contenteditable="true" data-ph="Enter any relevant information not already covered"></div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="inv-footer">
+          <div class="inv-footer-left">
+          <div class="inv-note-block inv-terms-foot">
+            <div class="inv-note-lbl">Terms</div>
+            <div class="inv-note-body" contenteditable="true" data-ph="Terms and conditions — late fees, payment method, delivery, schedule, etc."></div>
+          </div>
+          <div class="inv-pay-group">
+          <div class="logo-box inv-qr" id="qrBox" onclick="pickLogo('qrBox')">
+            <span class="logo-ph">＋<br>QR</span>
+          </div>
+          <button class="pay-show-btn" id="payShowBtn" onclick="showPayment()" style="display:none">+ payment banner</button>
+          <div class="inv-pay-wrap" id="payWrap">
+            <button class="pay-change" onclick="togglePayMenu(event)">▾</button>
+            <button class="pay-hide-btn" onclick="hidePayment()" title="Hide payment banner">✕</button>
+            <div class="inv-pay">
+              <span class="inv-pay-label" contenteditable="true">WISE</span>
+              <span class="inv-pay-link" contenteditable="true" oninput="updatePayHref()" data-ph="add your payment link"></span>
+              <a class="inv-pay-btn" id="payNowBtn" href="#" target="_blank" rel="noopener noreferrer">PAY NOW →</a>
+            </div>
+            <div class="pay-menu" id="payMenu" onclick="event.stopPropagation()">
+              <div class="pay-menu-title">Payment Method</div>
+              <div class="pay-presets" id="payPresets"></div>
+              <div class="pay-linkfield">
+                <input type="text" id="payLinkInput" placeholder="your payment link (e.g. paypal.me/yourname)" oninput="syncPayLink()">
+              </div>
+              <div class="pay-custom">
+                <div class="pay-custom-row">
+                  <label>Custom background</label>
+                  <input type="color" id="payBgPicker" value="#9fe870" oninput="applyCustomColor()">
+                </div>
+                <div class="pay-custom-row">
+                  <label>Custom text</label>
+                  <input type="color" id="payFgPicker" value="#163300" oninput="applyCustomColor()">
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+          </div>
+          <div class="inv-totals">
+            <div class="tl"><span class="tl-label">Subtotal</span><span class="tl-right"><span class="tl-amt" id="invSubtotal">$0.00</span></span></div>
+
+            <div class="tl" id="taxRow">
+              <span class="tl-label">Tax</span>
+              <span class="tl-right">
+                <span class="tl-ctrl">
+                  <button class="tl-mode" id="taxMode" onclick="toggleMode('tax')" title="Switch % / amount">%</button>
+                  <span class="tl-box pct"><span class="tl-affix" id="taxAffix">%</span><span class="tl-num" id="taxVal" contenteditable="true" oninput="recalc()">0</span></span>
+                </span>
+                <span class="tl-amt" id="taxAmt">$0.00</span>
+              </span>
+            </div>
+
+            <div class="tl" id="discountRow">
+              <span class="tl-label">Discount</span>
+              <span class="tl-right">
+                <span class="tl-ctrl">
+                  <button class="tl-mode" id="discountMode" onclick="toggleMode('discount')" title="Switch % / amount">%</button>
+                  <span class="tl-box pct"><span class="tl-affix" id="discountAffix">%</span><span class="tl-num" id="discountVal" contenteditable="true" oninput="recalc()">0</span></span>
+                </span>
+                <span class="tl-amt" id="discountAmt">−$0.00</span>
+              </span>
+            </div>
+
+            <div class="tl" id="shippingRow">
+              <span class="tl-label">Shipping</span>
+              <span class="tl-right">
+                <span class="tl-ctrl">
+                  <span class="tl-box"><span class="tl-affix">$</span><span class="tl-num" id="shippingVal" contenteditable="true" oninput="recalc()">0</span></span>
+                </span>
+                <span class="tl-amt" id="shippingAmt">$0.00</span>
+              </span>
+            </div>
+
+            <div class="tl-divider"></div>
+
+            <div class="tl tl-total"><span class="tl-label">Total</span><span class="tl-right"><span class="tl-amt" id="invTotal">$0.00</span></span></div>
+
+            <div class="tl" id="paidRow">
+              <span class="tl-label">Amount Paid</span>
+              <span class="tl-right">
+                <span class="tl-ctrl">
+                  <span class="tl-box"><span class="tl-affix">$</span><span class="tl-num" id="paidVal" contenteditable="true" oninput="recalc()">0</span></span>
+                </span>
+                <span class="tl-amt" id="paidAmt">−$0.00</span>
+              </span>
+            </div>
+
+            <div class="tl-divider"></div>
+
+            <div class="tl tl-balance"><span class="tl-label">Balance Due</span><span class="tl-right"><span class="tl-amt" id="invBalance">$0.00</span></span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<input type="file" id="logoFileInput" accept="image/*" style="display:none">
+
+<!-- QR crop modal -->
+<div class="crop-overlay" id="cropOverlay">
+  <div class="crop-modal">
+    <div class="crop-title">Adjust QR &nbsp;·&nbsp; drag to move, slider to zoom</div>
+    <div class="crop-stage" id="cropStage">
+      <img id="cropImg" draggable="false" alt="">
+      <div class="crop-frame"></div>
+    </div>
+    <input type="range" id="cropZoom" min="1" max="4" step="0.01" value="1" oninput="setCropZoom(parseFloat(this.value))">
+    <div class="crop-actions">
+      <button class="btn btn-ghost" onclick="cancelCrop()">Cancel</button>
+      <button class="split-main" style="border-radius:6px;" onclick="applyCrop()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Seed line items ──
+const seed = [
+  { desc: '', qty: '', rate: '', note: '' },
+  { desc: '', qty: '', rate: '', note: '' },
+  { desc: '', qty: '', rate: '', note: '' },
+];
+
+// ── Payment method presets ──
+const payPresets = [
+  { name: 'Wise',          label: 'WISE',          bg: '#9fe870', fg: '#163300' },
+  { name: 'PayPal',        label: 'PAYPAL',        bg: '#003087', fg: '#ffffff' },
+  { name: 'Stripe',        label: 'STRIPE',        bg: '#635bff', fg: '#ffffff' },
+  { name: 'Venmo',         label: 'VENMO',         bg: '#008cff', fg: '#ffffff' },
+  { name: 'Cash App',      label: 'CASH APP',      bg: '#00d632', fg: '#ffffff' },
+  { name: 'Bank Transfer', label: 'BANK TRANSFER', bg: '#1A1A1A', fg: '#ffffff' },
+];
+
+function buildPayPresets() {
+  const wrap = document.getElementById('payPresets');
+  wrap.innerHTML = '';
+  payPresets.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'pay-preset';
+    el.onclick = () => setPayMethod(p);
+    el.innerHTML = `<span class="pay-swatch" style="background:${p.bg};border:1px solid ${p.fg}33"></span><span class="pay-preset-name">${p.name}</span>`;
+    wrap.appendChild(el);
+  });
+}
+
+function setPayColors(bg, fg) {
+  const wrap = document.getElementById('payWrap');
+  wrap.style.setProperty('--pay-bg', bg);
+  wrap.style.setProperty('--pay-fg', fg);
+  wrap.style.setProperty('--pay-dim', fg + 'b3'); // ~70% alpha
+  document.getElementById('payBgPicker').value = bg.length === 7 ? bg : bg;
+  document.getElementById('payFgPicker').value = fg.length === 7 ? fg : fg;
+}
+
+function setPayMethod(p) {
+  document.querySelector('.inv-pay-label').textContent = p.label;
+  setPayColors(p.bg, p.fg);
+  document.getElementById('payMenu').classList.remove('open');
+}
+
+function applyCustomColor() {
+  const bg = document.getElementById('payBgPicker').value;
+  const fg = document.getElementById('payFgPicker').value;
+  setPayColors(bg, fg);
+}
+
+function hidePayment() {
+  document.getElementById('payWrap').style.display = 'none';
+  document.getElementById('payShowBtn').style.display = '';
+}
+function showPayment() {
+  document.getElementById('payWrap').style.display = '';
+  document.getElementById('payShowBtn').style.display = 'none';
+}
+function syncPayLink() {
+  document.querySelector('.inv-pay-link').textContent = document.getElementById('payLinkInput').value || '';
+  updatePayHref();
+}
+
+// Build a usable URL from whatever the user typed (no scheme, no www, email, etc.)
+function normalizeUrl(raw) {
+  let s = (raw || '').trim();
+  if (!s) return '#';
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return 'mailto:' + s;     // email
+  if (/^(https?:|mailto:|upi:|tel:)/i.test(s)) return s;             // already a scheme
+  return 'https://' + s.replace(/^\/+/, '');                          // bare domain/handle
+}
+function updatePayHref() {
+  const link = document.querySelector('.inv-pay-link').textContent;
+  document.getElementById('payNowBtn').href = normalizeUrl(link);
+  updatePayLayout();
+}
+
+// Decide when to hide the link text on the FINAL invoice (preview/print).
+// Editor always keeps it visible & editable; this only flags it via a class.
+function updatePayLayout() {
+  const a5 = document.getElementById('pageSize').value === 'A5';
+  const hasQR = document.getElementById('qrBox').classList.contains('has-img');
+  const link = document.querySelector('.inv-pay-link');
+  const tooLong = link.textContent.trim().length > 30;
+  link.classList.toggle('pay-hide', (a5 && hasQR) || tooLong);
+}
+
+function togglePayMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('payMenu');
+  // Seed the link input from whatever is currently on the banner
+  document.getElementById('payLinkInput').value = document.querySelector('.inv-pay-link').textContent.trim();
+  menu.classList.toggle('open');
+}
+
+// ════════════════════════════════════════
+//  AUTOSAVE — localStorage (text/settings) + best-effort images
+// ════════════════════════════════════════
+const SAVE_KEY = 'invoice-generator:v1';
+const SAVE_IMG_KEY = 'invoice-generator:v1:images';
+
+// editable single elements → stable keys
+const SAVE_FIELDS = {
+  eyebrow: '.inv-eyebrow', billerName: '.inv-name', billerLines: '.inv-biller-lines',
+  invNum: '.inv-num-val', clientName: '.inv-billed-name',
+  termsChipLbl: '.inv-terms-lbl', termsChipVal: '.inv-terms-val',
+  sectionName: '.inv-section-name', payLabel: '.inv-pay-label', payLink: '.inv-pay-link',
+  notes: '.inv-notes-area .inv-note-body', termsFoot: '.inv-terms-foot .inv-note-body',
+  taxVal: '#taxVal', discountVal: '#discountVal', shippingVal: '#shippingVal', paidVal: '#paidVal'
+};
+
+function imgOf(id) {
+  const box = document.getElementById(id);
+  if (!box || !box.classList.contains('has-img')) return '';
+  const im = box.querySelector('img');
+  return im ? im.src : '';
+}
+
+function snapshotMain() {
+  const fields = {};
+  for (const k in SAVE_FIELDS) { const el = document.querySelector(SAVE_FIELDS[k]); if (el) fields[k] = el.innerHTML; }
+  const colHeaders = [...document.querySelectorAll('.inv-table thead th span[contenteditable]')].map(s => s.innerHTML);
+  const items = [...document.querySelectorAll('#invBody tr')].map(tr => ({
+    desc: tr.querySelector('.row-desc').innerHTML,
+    qty: tr.querySelector('.qty').textContent,
+    rate: tr.querySelector('.rate').textContent,
+    note: tr.querySelector('.inv-note').innerHTML,
+    noteShown: tr.querySelector('.inv-note').style.display !== 'none'
+  }));
+  const inv = document.getElementById('invoice');
+  const pw = document.getElementById('payWrap');
+  return {
+    fields, colHeaders, items,
+    currency: { sym: currencySymbol, sel: document.getElementById('currencySel').value, custom: document.getElementById('currencyCustom').value },
+    pageSize: document.getElementById('pageSize').value,
+    ink: inv.style.getPropertyValue('--ink') || '#1A1A1A',
+    mode: { tax: totalMode.tax, discount: totalMode.discount },
+    dates: { issued: document.getElementById('issuedInput').value, due: document.getElementById('dueInput').value,
+             issuedText: document.getElementById('issuedText').textContent, dueText: document.getElementById('dueText').textContent },
+    pay: { bg: pw.style.getPropertyValue('--pay-bg') || '#9fe870', fg: pw.style.getPropertyValue('--pay-fg') || '#163300' },
+    payHidden: pw.style.display === 'none',
+    billerRatio: billerRatio
+  };
+}
+function snapshotImages() {
+  return { biller: imgOf('billerLogo'), client: imgOf('clientLogo'), qr: imgOf('qrBox'), qrOriginal: qrOriginal || '' };
+}
+
+let saveTimer = null;
+function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 400); }
+function saveNow() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshotMain())); } catch (e) { /* ignore */ }
+  // images are large → best-effort, separate key so text always saves
+  try { localStorage.setItem(SAVE_IMG_KEY, JSON.stringify(snapshotImages())); } catch (e) { /* quota: skip images */ }
+}
+
+function setLogoImg(id, src) {
+  const box = document.getElementById(id);
+  box.innerHTML = '<img src="' + src + '" alt="logo"><button class="logo-remove" onclick="event.stopPropagation();removeLogo(\'' + id + '\')">✕</button>';
+  box.classList.add('has-img');
+}
+function applyMode(which, mode) {
+  totalMode[which] = mode;
+  document.getElementById(which + 'Mode').textContent = mode === 'pct' ? '%' : '$';
+  document.getElementById(which + 'Affix').parentElement.classList.toggle('pct', mode === 'pct');
+}
+
+function applyState(s, imgs) {
+  if (!s) return;
+  // fields
+  if (s.fields) for (const k in SAVE_FIELDS) { const el = document.querySelector(SAVE_FIELDS[k]); if (el && k in s.fields) el.innerHTML = s.fields[k]; }
+  // column headers
+  if (s.colHeaders) document.querySelectorAll('.inv-table thead th span[contenteditable]').forEach((sp, i) => { if (s.colHeaders[i] != null) sp.innerHTML = s.colHeaders[i]; });
+  // line items
+  if (Array.isArray(s.items)) {
+    document.getElementById('invBody').innerHTML = '';
+    s.items.forEach(it => {
+      addRow({ desc: '', qty: '', rate: '', note: '' });
+      const tr = document.querySelector('#invBody tr:last-child');
+      tr.querySelector('.row-desc').innerHTML = it.desc || '';
+      tr.querySelector('.qty').textContent = it.qty || '';
+      tr.querySelector('.rate').textContent = it.rate || '';
+      const note = tr.querySelector('.inv-note');
+      note.innerHTML = it.note || '';
+      if (it.noteShown || (it.note && it.note.trim())) { note.style.display = 'block'; tr.querySelector('.note-add').style.display = 'none'; }
+    });
+  }
+  // currency
+  if (s.currency) {
+    currencySymbol = s.currency.sym || '$';
+    const sel = document.getElementById('currencySel'); sel.value = s.currency.sel || '$';
+    const cust = document.getElementById('currencyCustom'); cust.value = s.currency.custom || '';
+    cust.style.display = sel.value === 'custom' ? '' : 'none';
+  }
+  // modes / dates / pay colors / pageSize / theme
+  if (s.mode) { applyMode('tax', s.mode.tax || 'pct'); applyMode('discount', s.mode.discount || 'pct'); }
+  if (s.dates) {
+    document.getElementById('issuedInput').value = s.dates.issued || '';
+    document.getElementById('dueInput').value = s.dates.due || '';
+    if (s.dates.issuedText) document.getElementById('issuedText').textContent = s.dates.issuedText;
+    if (s.dates.dueText) document.getElementById('dueText').textContent = s.dates.dueText;
+  }
+  if (s.pay) setPayColors(s.pay.bg || '#9fe870', s.pay.fg || '#163300');
+  if (s.pageSize) { document.getElementById('pageSize').value = s.pageSize; setPageSize(); }
+  if (s.ink) setInk(s.ink);
+  if (typeof s.billerRatio === 'number') billerRatio = s.billerRatio;
+  if (s.payHidden) hidePayment(); else showPayment();
+
+  // images
+  if (imgs) {
+    if (imgs.biller) { setLogoImg('billerLogo', imgs.biller); sizeBillerLogo(); }
+    if (imgs.client) {
+      setLogoImg('clientLogo', imgs.client);
+      const p = new Image(); p.onload = () => applyLogoRatio(document.getElementById('clientLogo'), p.naturalWidth, p.naturalHeight, 34); p.src = imgs.client;
+    }
+    if (imgs.qr) setQRImage(imgs.qr, imgs.qrOriginal || imgs.qr);
+  }
+
+  updatePayHref();
+  recalc();
+  fitScale();
+}
+
+function loadState() {
+  let main = null, imgs = null;
+  try { main = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) {}
+  try { imgs = JSON.parse(localStorage.getItem(SAVE_IMG_KEY)); } catch (e) {}
+  if (main) applyState(main, imgs);
+  return !!main;
+}
+
+function startAutosave() {
+  const obs = new MutationObserver(scheduleSave);
+  obs.observe(document.getElementById('invoice'), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['style', 'class'] });
+  // topbar controls live outside #invoice
+  document.getElementById('currencySel').addEventListener('change', scheduleSave);
+  document.getElementById('currencyCustom').addEventListener('input', scheduleSave);
+  document.getElementById('pageSize').addEventListener('change', scheduleSave);
+}
+
+function resetAll() {
+  if (!confirm('Reset everything? This clears your saved draft.')) return;
+  try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(SAVE_IMG_KEY); } catch (e) {}
+  location.reload();
+}
+
+window.onload = () => {
+  seed.forEach(r => addRow(r));
+  document.querySelector('.inv-biller-text').addEventListener('input', sizeBillerLogo);
+  document.getElementById('issuedInput').value = '2026-06-03';
+  document.getElementById('dueInput').value = '2026-06-08';
+  buildPayPresets();
+  setPayColors('#9fe870', '#163300');
+  setPageSize();
+  updatePayHref();
+  initCropDrag();
+  initTheme();
+  document.addEventListener('paste', handlePaste);
+  document.addEventListener('keydown', handleEnter);
+  window.addEventListener('resize', fitScale);
+  loadState();              // restore saved draft if present
+  recalc();
+  fitScale();
+  startAutosave();          // begin watching for changes (after restore)
+};
+
+let currencySymbol = '$';
+function cur() { return currencySymbol; }
+
+function onCurrencyChange() {
+  const sel = document.getElementById('currencySel');
+  const custom = document.getElementById('currencyCustom');
+  if (sel.value === 'custom') {
+    custom.style.display = '';
+    custom.focus();
+    currencySymbol = custom.value.trim() || '$';
+  } else {
+    custom.style.display = 'none';
+    currencySymbol = sel.value;
+  }
+  refreshCurrency();
+}
+function onCurrencyCustom() {
+  currencySymbol = document.getElementById('currencyCustom').value.trim() || '$';
+  refreshCurrency();
+}
+function refreshCurrency() {
+  // Re-prefix every rate cell with the new symbol, then recompute
+  document.querySelectorAll('#invBody .rate').forEach(el => {
+    if (el.textContent.trim() === '') return;   // leave empty rows as placeholder
+    el.textContent = money(num(el.textContent));
+  });
+  recalc();
+}
+function num(t) { return parseFloat(String(t).replace(/[^0-9.\-]/g, '')) || 0; }
+function money(n) { return cur() + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// Fields that may contain multiple lines
+function isMultiline(el) {
+  return el.classList.contains('inv-biller-lines') || el.classList.contains('inv-note-body') || el.classList.contains('inv-note');
+}
+// Plain-text paste: strip foreign fonts/colors/HTML
+function handlePaste(e) {
+  const el = e.target;
+  if (!el || !el.isContentEditable) return;
+  e.preventDefault();
+  let text = (e.clipboardData || window.clipboardData).getData('text/plain') || '';
+  if (!isMultiline(el)) text = text.replace(/\s*\n\s*/g, ' ').trim();
+  document.execCommand('insertText', false, text);
+}
+// Enter: add a row inside line items; commit (no newline) in single-line fields
+function handleEnter(e) {
+  if (e.key !== 'Enter' || e.shiftKey) return;
+  const el = e.target;
+  if (!el || !el.isContentEditable) return;
+  if (el.classList.contains('row-desc') || el.classList.contains('qty') || el.classList.contains('rate')) {
+    e.preventDefault(); addRow(); return;
+  }
+  if (isMultiline(el)) return;          // allow newlines here
+  e.preventDefault(); el.blur();        // single-line → no stray line break
+}
+
+// ── Rows ──
+function addRow(data) {
+  // New rows (from "+ Add line item") start empty so placeholders show
+  const isNew = !(data && typeof data === 'object' && 'desc' in data);
+  if (isNew) data = { desc: '', qty: '', rate: '', note: '' };
+  const hasNote = !!(data.note && String(data.note).trim());
+  const qtyText  = (data.qty === '' || data.qty == null) ? '' : data.qty;
+  const rateText = (data.rate === '' || data.rate == null) ? '' : money(data.rate);
+  const tbody = document.getElementById('invBody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>
+      <div class="row-desc" contenteditable="true">${escHtml(data.desc)}</div>
+      <div class="inv-note" contenteditable="true" onblur="hideNoteIfEmpty(this)" style="${hasNote ? '' : 'display:none'}">${escHtml(data.note)}</div>
+      <button class="note-add" onclick="toggleNote(this)" style="${hasNote ? 'display:none' : ''}">+ note</button>
+      <button class="row-del" title="Delete row" onclick="this.closest('tr').remove();recalc()">✕</button>
+    </td>
+    <td><span class="ed-num qty" contenteditable="true" oninput="recalc()">${escHtml(qtyText)}</span></td>
+    <td><span class="ed-num rate" contenteditable="true" oninput="recalc()" onblur="formatRate(this)">${escHtml(rateText)}</span></td>
+    <td class="amount-cell">${money(0)}</td>
+  `;
+  tbody.appendChild(tr);
+  recalc();
+  if (isNew) tr.querySelector('.row-desc').focus();
+}
+
+function formatRate(el) {
+  if (el.textContent.trim() !== '') el.textContent = money(num(el.textContent));
+  recalc();
+}
+
+function toggleNote(btn) {
+  const td = btn.closest('td');
+  const note = td.querySelector('.inv-note');
+  note.style.display = 'block';
+  btn.style.display = 'none';
+  note.focus();
+}
+
+function hideNoteIfEmpty(note) {
+  if (!note.textContent.trim()) {
+    note.style.display = 'none';
+    const btn = note.parentElement.querySelector('.note-add');
+    if (btn) btn.style.display = '';   // revert to CSS hover control
+  }
+}
+
+// ── Totals breakdown ──
+let totalMode = { tax: 'pct', discount: 'pct' };
+
+function toggleMode(which) {
+  const mode = (totalMode[which] = totalMode[which] === 'pct' ? 'amt' : 'pct');
+  document.getElementById(which + 'Mode').textContent = mode === 'pct' ? '%' : '$';
+  const affix = document.getElementById(which + 'Affix');
+  affix.parentElement.classList.toggle('pct', mode === 'pct');
+  recalc();
+}
+
+function recalc() {
+  const c = cur();
+  let subtotal = 0;
+  document.querySelectorAll('#invBody tr').forEach(tr => {
+    const q = num(tr.querySelector('.qty').textContent);
+    const r = num(tr.querySelector('.rate').textContent);
+    const amt = q * r;
+    tr.querySelector('.amount-cell').textContent = money(amt);
+    subtotal += amt;
+  });
+
+  // keep affixes in sync with currency / mode
+  document.getElementById('taxAffix').textContent = totalMode.tax === 'pct' ? '%' : c;
+  document.getElementById('discountAffix').textContent = totalMode.discount === 'pct' ? '%' : c;
+  document.querySelectorAll('#shippingRow .tl-affix, #paidRow .tl-affix').forEach(a => a.textContent = c);
+
+  const taxIn  = num(document.getElementById('taxVal').textContent);
+  const discIn = num(document.getElementById('discountVal').textContent);
+  const ship   = num(document.getElementById('shippingVal').textContent);
+  const paid   = num(document.getElementById('paidVal').textContent);
+
+  const taxAmt  = totalMode.tax === 'pct' ? subtotal * taxIn / 100 : taxIn;
+  const discAmt = totalMode.discount === 'pct' ? subtotal * discIn / 100 : discIn;
+  const total   = subtotal + taxAmt - discAmt + ship;
+  const balance = total - paid;
+
+  document.getElementById('invSubtotal').textContent = money(subtotal);
+  document.getElementById('taxAmt').textContent      = money(taxAmt);
+  document.getElementById('discountAmt').textContent = '−' + money(discAmt);
+  document.getElementById('shippingAmt').textContent = money(ship);
+  document.getElementById('invTotal').textContent    = money(total);
+  document.getElementById('paidAmt').textContent     = '−' + money(paid);
+  document.getElementById('invBalance').textContent  = money(balance);
+  document.getElementById('kpiTotal').textContent    = money(balance);  // top "Amount Due" = balance
+
+  // hide zero rows in preview / print
+  document.getElementById('taxRow').classList.toggle('zero-row', taxAmt === 0);
+  document.getElementById('discountRow').classList.toggle('zero-row', discAmt === 0);
+  document.getElementById('shippingRow').classList.toggle('zero-row', ship === 0);
+  document.getElementById('paidRow').classList.toggle('zero-row', paid === 0);
+
+  // smart-scale the big figures so long numbers stay on one line
+  fitAmount('kpiTotal', 30);
+  fitAmount('invBalance', 17);
+  fitAmount('invTotal', 14);
+  fitAmount('invSubtotal', 10.5);
+}
+
+// Scale font down as the number gets longer (keeps it on one line, no overflow)
+function fitAmount(id, base) {
+  const el = document.getElementById(id);
+  const len = el.textContent.length;   // symbol + digits + commas + decimals
+  let scale = 1;
+  if (len > 16) scale = 0.58;
+  else if (len > 13) scale = 0.7;
+  else if (len > 10) scale = 0.84;
+  el.style.fontSize = (base * scale).toFixed(1) + 'px';
+}
+
+// ── Dates ──
+function openDate(which) {
+  if (document.body.classList.contains('preview-mode')) return;
+  const inp = document.getElementById(which + 'Input');
+  try { inp.showPicker(); } catch (e) { inp.focus(); inp.click(); }
+}
+function setDate(which) {
+  const inp = document.getElementById(which + 'Input');
+  const span = document.getElementById(which + 'Text');
+  if (inp.value) {
+    const d = new Date(inp.value + 'T00:00:00');
+    span.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+}
+
+// ── Logos ──
+// Find the closest standard aspect ratio for a given image size.
+function snapBest(w, h) {
+  const ratios = [[2,1],[1,2],[1,1],[4,3],[16,9]];
+  const r = w / h;
+  let best = [1,1], diff = Infinity;
+  ratios.forEach(([rw, rh]) => {
+    const d = Math.abs(r - rw / rh);
+    if (d < diff) { diff = d; best = [rw, rh]; }
+  });
+  return best;
+}
+function snapRatio(w, h) { const b = snapBest(w, h); return b[0] + ' / ' + b[1]; }
+
+// Biller logo: match the text-block height (clamped), width from snapped ratio.
+let billerRatio = 1;
+function sizeBillerLogo() {
+  const box = document.getElementById('billerLogo');
+  if (!box.classList.contains('has-img')) return;
+  const textH = document.querySelector('.inv-biller-text').offsetHeight;
+  const h = Math.max(40, Math.min(textH, 96));
+  box.style.height = h + 'px';
+  box.style.width = Math.round(h * billerRatio) + 'px';
+}
+
+// Snap to closest ratio at a fixed height (used for the client logo).
+function applyLogoRatio(box, w, h, baseH) {
+  const best = snapBest(w, h);
+  box.style.height = baseH + 'px';
+  box.style.width = Math.round(baseH * (best[0] / best[1])) + 'px';
+}
+
+// ── QR crop modal (Discord-style: pan + zoom, square output) ──
+const CROP_STAGE = 260, CROP_OUT = 360;
+let cropState = null, qrOriginal = null;
+
+function dispSize() { const s = cropState, k = s.coverScale * s.zoom; return { w: s.nat.w * k, h: s.nat.h * k }; }
+function clampCrop() {
+  const s = cropState, d = dispSize();
+  s.ox = Math.min(0, Math.max(CROP_STAGE - d.w, s.ox));
+  s.oy = Math.min(0, Math.max(CROP_STAGE - d.h, s.oy));
+}
+function renderCrop() {
+  clampCrop();
+  const s = cropState, d = dispSize(), img = document.getElementById('cropImg');
+  img.style.width = d.w + 'px'; img.style.height = d.h + 'px';
+  img.style.left = s.ox + 'px'; img.style.top = s.oy + 'px';
+}
+function openCrop(dataUrl) {
+  const overlay = document.getElementById('cropOverlay');
+  const probe = new Image();
+  probe.onload = () => {
+    const nat = { w: probe.naturalWidth, h: probe.naturalHeight };
+    const coverScale = Math.max(CROP_STAGE / nat.w, CROP_STAGE / nat.h);
+    cropState = { dataUrl, nat, coverScale, zoom: 1, ox: 0, oy: 0 };
+    document.getElementById('cropZoom').value = 1;
+    const d = dispSize();
+    cropState.ox = (CROP_STAGE - d.w) / 2;
+    cropState.oy = (CROP_STAGE - d.h) / 2;
+    document.getElementById('cropImg').src = dataUrl;
+    renderCrop();
+    overlay.style.display = 'flex';
+  };
+  probe.src = dataUrl;
+}
+function setCropZoom(v) {
+  const s = cropState; if (!s) return;
+  const cx = CROP_STAGE / 2 - s.ox, cy = CROP_STAGE / 2 - s.oy;
+  const ratio = v / s.zoom;
+  s.zoom = v;
+  s.ox = CROP_STAGE / 2 - cx * ratio;
+  s.oy = CROP_STAGE / 2 - cy * ratio;
+  renderCrop();
+}
+function cancelCrop() { document.getElementById('cropOverlay').style.display = 'none'; cropState = null; }
+function applyCrop() {
+  const s = cropState; if (!s) return;
+  const k = s.coverScale * s.zoom;
+  const srcX = (-s.ox) / k, srcY = (-s.oy) / k, srcSize = CROP_STAGE / k;
+  const canvas = document.createElement('canvas');
+  canvas.width = CROP_OUT; canvas.height = CROP_OUT;
+  const ctx = canvas.getContext('2d');
+  const probe = new Image();
+  probe.onload = () => {
+    ctx.drawImage(probe, srcX, srcY, srcSize, srcSize, 0, 0, CROP_OUT, CROP_OUT);
+    setQRImage(canvas.toDataURL('image/png'), s.dataUrl);
+    cancelCrop();
+  };
+  probe.src = s.dataUrl;
+}
+function setQRImage(croppedUrl, originalUrl) {
+  const box = document.getElementById('qrBox');
+  box.innerHTML = '<img class="qr-final" src="' + croppedUrl + '">' +
+    '<button class="qr-readjust" onclick="event.stopPropagation();openCrop(qrOriginal)">Adjust</button>' +
+    '<button class="logo-remove" title="Remove" onclick="event.stopPropagation();removeLogo(\'qrBox\')">✕</button>';
+  box.classList.add('has-img');
+  qrOriginal = originalUrl;
+  updatePayLayout();
+}
+
+function removeLogo(id) {
+  const box = document.getElementById(id);
+  box.classList.remove('has-img');
+  box.style.width = ''; box.style.height = '';
+  const ph = id === 'billerLogo' ? 'YOUR<br>LOGO' : id === 'clientLogo' ? 'CLIENT<br>LOGO' : '＋<br>QR';
+  box.innerHTML = '<span class="logo-ph">' + ph + '</span>';
+  if (id === 'qrBox') { qrOriginal = null; updatePayLayout(); }
+}
+// ── Scale the invoice up (~150%) but never wider than the viewport ──
+function fitScale() {
+  const inv = document.getElementById('invoice');
+  const stage = document.querySelector('.stage');
+  if (!inv || !stage) return;
+  inv.style.zoom = '1';                                   // measure base width
+  const paperW = inv.getBoundingClientRect().width;
+  const cs = getComputedStyle(stage);
+  const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const avail = stage.clientWidth - pad;                  // exact content width at any breakpoint
+  if (paperW <= 0 || avail <= 0) return;
+  const scale = Math.min(1.5, avail / paperW);            // up to 150%, shrink to fit if needed
+  inv.style.zoom = scale.toFixed(3);
+}
+
+// ── Theme (invoice ink color) ──
+function isLightColor(hex) {
+  const c = String(hex).replace('#', '');
+  if (c.length < 6) return false;
+  const r = parseInt(c.slice(0,2),16), g = parseInt(c.slice(2,4),16), b = parseInt(c.slice(4,6),16);
+  return (0.299*r + 0.587*g + 0.114*b) / 255 > 0.62;   // perceived luminance
+}
+function setInk(color) {
+  const inv = document.getElementById('invoice');
+  inv.style.setProperty('--ink', color);
+  inv.classList.toggle('light-ink', isLightColor(color));   // flip hero text dark on light themes
+  document.querySelectorAll('.theme-bar .swatch[data-ink]').forEach(b =>
+    b.classList.toggle('active', b.dataset.ink.toLowerCase() === color.toLowerCase()));
+}
+function initTheme() {
+  document.querySelectorAll('.theme-bar .swatch[data-ink]').forEach(b => {
+    b.addEventListener('click', () => { setInk(b.dataset.ink); document.getElementById('themeCustom').value = b.dataset.ink; });
+  });
+  document.getElementById('themeCustom').addEventListener('input', e => setInk(e.target.value));
+  setInk('#1A1A1A');
+}
+
+function initCropDrag() {
+  const stage = document.getElementById('cropStage');
+  let dragging = false, sx = 0, sy = 0;
+  stage.addEventListener('mousedown', e => { if (!cropState) return; dragging = true; sx = e.clientX - cropState.ox; sy = e.clientY - cropState.oy; e.preventDefault(); });
+  document.addEventListener('mousemove', e => { if (!dragging || !cropState) return; cropState.ox = e.clientX - sx; cropState.oy = e.clientY - sy; renderCrop(); });
+  document.addEventListener('mouseup', () => { dragging = false; });
+}
+
+let logoTarget = null;
+function pickLogo(id) {
+  if (document.body.classList.contains('preview-mode')) return;
+  logoTarget = id;
+  document.getElementById('logoFileInput').click();
+}
+document.getElementById('logoFileInput').onchange = function() {
+  const file = this.files[0]; if (!file || !logoTarget) return;
+  const reader = new FileReader();
+  const target = logoTarget; // capture in case it changes before load
+  reader.onload = e => {
+    const box = document.getElementById(target);
+    const dataUrl = e.target.result;
+    const probe = new Image();
+    probe.onload = () => {
+      if (target === 'qrBox') {
+        openCrop(dataUrl);       // Discord-style square crop modal
+        return;
+      }
+      box.innerHTML = `<img src="${dataUrl}" alt="logo"><button class="logo-remove" title="Remove" onclick="event.stopPropagation();removeLogo('${target}')">✕</button>`;
+      box.classList.add('has-img');
+      if (target === 'billerLogo') {
+        const b = snapBest(probe.naturalWidth, probe.naturalHeight);
+        billerRatio = b[0] / b[1];
+        sizeBillerLogo();
+      } else {
+        applyLogoRatio(box, probe.naturalWidth, probe.naturalHeight, 34);
+      }
+    };
+    probe.src = dataUrl;
+  };
+  reader.readAsDataURL(file);
+  this.value = '';
+};
+
+// ── Page size ──
+function setPageSize() {
+  const size = document.getElementById('pageSize').value;
+  const inv = document.getElementById('invoice');
+  inv.className = 'invoice size-' + size;
+  let s = document.getElementById('pageRule');
+  if (!s) { s = document.createElement('style'); s.id = 'pageRule'; document.head.appendChild(s); }
+  // First page bleeds to the top edge (dark hero); every page keeps top/bottom
+  // breathing room so multi-page invoices don't jam content against the edge.
+  // Sides stay 0 so the hero remains full-bleed; horizontal inset comes from padding.
+  s.textContent = `@media print { @page { size: ${size}; margin: 0.4in 0; } @page:first { margin-top: 0; } }`;
+  updatePayLayout();
+  fitScale();
+}
+
+// ── Export ──
+function toggleExportMenu(e) { e.stopPropagation(); document.getElementById('exportMenu').classList.toggle('open'); }
+function toggleAppMenu(e) { e.stopPropagation(); document.getElementById('appMenu').classList.toggle('open'); }
+document.addEventListener('click', () => {
+  document.getElementById('exportMenu').classList.remove('open');
+  document.getElementById('payMenu').classList.remove('open');
+  document.getElementById('appMenu').classList.remove('open');
+});
+
+function enterPreview() {
+  document.getElementById('exportMenu').classList.remove('open');
+  document.body.classList.add('preview-mode');
+  document.querySelectorAll('[contenteditable]').forEach(el => el.setAttribute('contenteditable','false'));
+  window.scrollTo(0,0);
+}
+function exitPreview() {
+  document.body.classList.remove('preview-mode');
+  document.querySelectorAll('[contenteditable]').forEach(el => el.setAttribute('contenteditable','true'));
+}
+function doPrint() { window.print(); }
+function exportNow() {
+  document.getElementById('exportMenu').classList.remove('open');
+  window.print();
+}
+</script>
+</body>
+</html>
