@@ -652,7 +652,7 @@ body.preview-mode .preview-bar { display: flex; }
         <!-- Notes + Terms (placeholders never print; empty blocks hidden in print) -->
         <div class="inv-notes-area">
           <div class="inv-note-block">
-            <div class="inv-note-lbl">Notes</div>
+            <div class="inv-note-lbl" contenteditable="true">Notes</div>
             <div class="inv-note-body" contenteditable="true" data-ph="Enter any relevant information not already covered"></div>
           </div>
         </div>
@@ -661,8 +661,8 @@ body.preview-mode .preview-bar { display: flex; }
         <div class="inv-footer">
           <div class="inv-footer-left">
           <div class="inv-note-block inv-terms-foot">
-            <div class="inv-note-lbl">Terms</div>
-            <div class="inv-note-body" contenteditable="true" data-ph="Terms and conditions — late fees, payment method, delivery, schedule, etc."></div>
+            <div class="inv-note-lbl" contenteditable="true">Terms</div>
+            <div class="inv-note-body" contenteditable="true" data-ph="Terms, bank details, payment instructions, etc."></div>
           </div>
           <div class="inv-pay-group">
           <div class="logo-box inv-qr" id="qrBox" onclick="pickLogo('qrBox')">
@@ -883,7 +883,8 @@ const SAVE_FIELDS = {
   invNum: '.inv-num-val', clientName: '.inv-billed-name',
   termsChipLbl: '.inv-terms-lbl', termsChipVal: '.inv-terms-val',
   sectionName: '.inv-section-name', payLabel: '.inv-pay-label', payLink: '.inv-pay-link',
-  notes: '.inv-notes-area .inv-note-body', termsFoot: '.inv-terms-foot .inv-note-body',
+  notes: '.inv-notes-area .inv-note-body', notesLbl: '.inv-notes-area .inv-note-lbl',
+  termsFoot: '.inv-terms-foot .inv-note-body', termsFootLbl: '.inv-terms-foot .inv-note-lbl',
   taxVal: '#taxVal', discountVal: '#discountVal', shippingVal: '#shippingVal', paidVal: '#paidVal'
 };
 
