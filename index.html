@@ -227,28 +227,6 @@ body {
 .inv-terms-lbl { font-size: 6.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.4); display: inline-block; }
 .inv-terms-val { font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -0.3px; line-height: 1; }
 
-/* Terms / Tax banner */
-.inv-banner { display: flex; align-items: center; gap: 36px; padding: 10px 28px; background: #fafafa; border-bottom: 1px solid #EAEAEA; }
-.inv-banner-item { display: flex; flex-direction: column; gap: 3px; }
-.inv-banner-lbl { font-size: 7px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #aaa; display: inline-block; }
-.inv-banner-val { font-size: 13px; font-weight: 800; color: #1A1A1A; letter-spacing: -0.3px; line-height: 1; display: inline-block; }
-.banner-add-tax {
-  background: none; border: 1px dashed #ccc; color: #999; font-size: 9px;
-  padding: 3px 9px; border-radius: 4px; cursor: pointer; font-family: 'Inter', sans-serif;
-}
-.banner-add-tax:hover { border-color: #999; color: #555; }
-
-/* Stats grid (legacy) */
-.inv-stats { display: grid; grid-template-columns: repeat(2, 1fr); border-bottom: 2px solid #1A1A1A; }
-.inv-stat { padding: 10px 16px; border-right: 1px solid #E8E8E8; }
-.inv-stat:last-child { border-right: none; }
-.inv-stat-num { font-size: 16px; font-weight: 900; color: #1A1A1A; line-height: 1; letter-spacing: -0.3px; display: inline-block; }
-.inv-stat-lbl { font-size: 7px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #AAA; margin-top: 3px; display: inline-block; }
-.inv-stat-logo { display: flex; align-items: center; justify-content: flex-end; }
-.inv-stat-logo .logo-box { background: #fafafa; border: 1px dashed #ccc; }
-.inv-stat-logo .logo-box:hover { border-color: #888; }
-.inv-stat-logo .logo-ph { color: #bbb; }
-
 /* Body */
 .inv-body { padding: 16px 32px 28px 28px; }
 .inv-section { display: flex; align-items: center; gap: 9px; margin: 0 0 10px; }
@@ -967,21 +945,22 @@ function applyMode(which, mode) {
 
 function applyState(s, imgs) {
   if (!s) return;
-  // fields
-  if (s.fields) for (const k in SAVE_FIELDS) { const el = document.querySelector(SAVE_FIELDS[k]); if (el && k in s.fields) el.innerHTML = s.fields[k]; }
+  restoring = true;   // suppress per-step recalc; we recalc once at the end
+  // fields (sanitized — content comes from localStorage)
+  if (s.fields) for (const k in SAVE_FIELDS) { const el = document.querySelector(SAVE_FIELDS[k]); if (el && k in s.fields) el.innerHTML = safeHTML(s.fields[k]); }
   // column headers
-  if (s.colHeaders) document.querySelectorAll('.inv-table thead th span[contenteditable]').forEach((sp, i) => { if (s.colHeaders[i] != null) sp.innerHTML = s.colHeaders[i]; });
+  if (s.colHeaders) document.querySelectorAll('.inv-table thead th span[contenteditable]').forEach((sp, i) => { if (s.colHeaders[i] != null) sp.innerHTML = safeHTML(s.colHeaders[i]); });
   // line items
   if (Array.isArray(s.items)) {
     document.getElementById('invBody').innerHTML = '';
     s.items.forEach(it => {
       addRow({ desc: '', qty: '', rate: '', note: '' });
       const tr = document.querySelector('#invBody tr:last-child');
-      tr.querySelector('.row-desc').innerHTML = it.desc || '';
+      tr.querySelector('.row-desc').innerHTML = safeHTML(it.desc || '');
       tr.querySelector('.qty').textContent = it.qty || '';
       tr.querySelector('.rate').textContent = it.rate || '';
       const note = tr.querySelector('.inv-note');
-      note.innerHTML = it.note || '';
+      note.innerHTML = safeHTML(it.note || '');
       if (it.noteShown || (it.note && it.note.trim())) { note.style.display = 'block'; tr.querySelector('.note-add').style.display = 'none'; }
     });
   }
@@ -1016,6 +995,7 @@ function applyState(s, imgs) {
     if (imgs.qr) setQRImage(imgs.qr, imgs.qrOriginal || imgs.qr);
   }
 
+  restoring = false;   // re-enable recalc and run it once
   updatePayHref();
   recalc();
   fitScale();
@@ -1095,6 +1075,15 @@ function refreshCurrency() {
 function num(t) { return parseFloat(String(t).replace(/[^0-9.\-]/g, '')) || 0; }
 function money(n) { return cur() + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// Scrub restored HTML from localStorage: drop scripts and inline event handlers
+function safeHTML(s){
+  return String(s == null ? '' : s)
+    .replace(/<\s*script[\s\S]*?<\s*\/\s*script\s*>/gi, '')
+    .replace(/<\s*\/?(iframe|object|embed|link|meta)[^>]*>/gi, '')
+    .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+    .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, '');
+}
 
 // Fields that may contain multiple lines
 function isMultiline(el) {
@@ -1179,7 +1168,9 @@ function toggleMode(which) {
   recalc();
 }
 
+let restoring = false;   // when true, recalc() is suppressed during state restore
 function recalc() {
+  if (restoring) return;
   const c = cur();
   let subtotal = 0;
   document.querySelectorAll('#invBody tr').forEach(tr => {
