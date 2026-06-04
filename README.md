@@ -3,6 +3,10 @@
 **Free online invoice generator — no login, no sign-up, no ads, no tracking.**
 Create, customize, and export professional invoices to PDF right in your browser. Your data never leaves your device.
 
+![Invoice Generator screenshot](screenshot.jpg)
+
+🔗 **Live:** https://zhirogg.github.io/invoice-generator/
+
 ## Features
 
 - **Edit directly on the invoice** — click any field to type
